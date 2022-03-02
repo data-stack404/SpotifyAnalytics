@@ -1,0 +1,60 @@
+services:
+  mysql-server:
+    image: mariadb:10.6.4-focal
+    command: '--default-authentication-plugin=mysql_native_password'
+    restart: always
+    volumes:
+      - db-data:/var/lib/mysql_data
+    networks:
+      - backnet
+    environment:
+        - MYSQL_RANDOM_ROOT_PASSWORD=false
+        - MYSQL_ROOT_USER=root
+        - MYSQL_ROOT_PASSWORD=root123
+        - MYSQL_USER=test
+        - MYSQL_PASSWORD=test
+        - MYSQL_DATABASE=spotify_analytics
+    healthcheck:
+        test: ["CMD", "mysql", "-utest", "-ptest", "-e", 'SELECT 1;']
+        interval: 5s
+        timeout: 5s
+        retries: 5
+        start_period: 5s
+    expose:
+      - 3306
+      - 33060
+  ingestion:
+    build: ingestion
+#    restart: always
+    ports:
+      - 5001:5001
+    networks:
+      - backnet
+      - frontnet
+    depends_on:
+      - mysql-server
+  backend:
+    build: backend
+    restart: always
+    ports:
+      - 5000:5000
+    networks:
+      - backnet
+      - frontnet
+    depends_on:
+      - mysql-server
+      - ingestion
+  proxy:
+    build: proxy
+    #restart: always
+    ports:
+      - 80:80
+    depends_on: 
+      - backend
+    networks:
+      - frontnet
+volumes:
+  db-data:
+networks:
+  backnet:
+  frontnet:
